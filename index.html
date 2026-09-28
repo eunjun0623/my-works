@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>내 작업실</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧰</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef1f5;
+    --bar: #d9dfe7;
+    --tab: #e6ebf1;
+    --tab-active: #ffffff;
+    --ink: #1d2733;
+    --muted: #5d6b7a;
+    --line: #c3ccd7;
+    --accent: #2f5bea;
+    --danger: #c23b3b;
+    --tile: #ffffff;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161b22; --bar: #0f1318; --tab: #1c222a; --tab-active: #262e38;
+      --ink: #e4e9ef; --muted: #93a1b0; --line: #313b47; --accent: #7b9cff;
+      --danger: #ff7a7a; --tile: #1f262f;
+    }
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, input:focus-visible, .tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* 탭 바 */
+  .tabbar {
+    display: flex; align-items: flex-end; gap: 2px;
+    background: var(--bar); padding: 8px 8px 0;
+    overflow-x: auto; scrollbar-width: none; flex-shrink: 0;
+  }
+  .tabbar::-webkit-scrollbar { display: none; }
+  .tab {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--tab); border-radius: 10px 10px 0 0;
+    padding: 0 6px 0 12px; height: 38px; min-width: 0; max-width: 200px; flex-shrink: 0;
+  }
+  .tab.active { background: var(--tab-active); }
+  .tab.home { padding-right: 12px; }
+  .tab-open {
+    border: 0; background: none; display: flex; align-items: center; gap: 6px;
+    min-width: 0; padding: 0; height: 100%; font-size: 14px;
+  }
+  .tab-open span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tab-close {
+    border: 0; background: none; width: 24px; height: 24px; border-radius: 6px;
+    color: var(--muted); font-size: 16px; line-height: 1; flex-shrink: 0;
+  }
+  .tab-close:hover { background: var(--bar); color: var(--ink); }
+
+  /* 주소 줄 */
+  .toolbar {
+    display: none; align-items: center; gap: 6px;
+    background: var(--tab-active); border-bottom: 1px solid var(--line);
+    padding: 6px 10px; flex-shrink: 0;
+  }
+  .toolbar.show { display: flex; }
+  .toolbar .addr {
+    flex: 1; min-width: 0; font-size: 13px; color: var(--muted);
+    background: var(--bg); border-radius: 8px; padding: 6px 10px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .tool-btn {
+    border: 0; background: none; height: 30px; padding: 0 10px; border-radius: 8px; font-size: 13px;
+  }
+  .tool-btn:hover { background: var(--bg); }
+
+  /* 본문 */
+  main { flex: 1; position: relative; min-height: 0; }
+  .panel { position: absolute; inset: 0; display: none; }
+  .panel.show { display: block; }
+  .panel iframe { width: 100%; height: 100%; border: 0; background: #fff; display: block; }
+
+  /* 홈 */
+  #home { overflow-y: auto; }
+  .home-inner { max-width: 880px; margin: 0 auto; padding: 48px 20px 64px; }
+  .home-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: clamp(28px, 5vw, 40px); font-weight: 700; margin: 0; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); margin: 6px 0 32px; font-size: 15px; }
+  .head-actions { display: flex; gap: 6px; }
+  .ghost {
+    border: 1px solid var(--line); background: none; border-radius: 8px;
+    padding: 6px 12px; font-size: 13px;
+  }
+  .ghost[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+  .tile {
+    position: relative; background: var(--tile); border: 1px solid var(--line); border-radius: 14px;
+    padding: 18px 14px 14px; text-align: left; display: flex; flex-direction: column; gap: 10px;
+    min-height: 130px; width: 100%;
+  }
+  .tile:hover { border-color: var(--accent); }
+  .tile .emoji { font-size: 34px; line-height: 1; }
+  .tile .name { font-weight: 500; font-size: 15px; word-break: keep-all; }
+  .tile .host { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: auto; }
+  .tile-edit { position: absolute; top: 8px; right: 8px; display: none; gap: 4px; }
+  .editing .tile-edit { display: flex; }
+  .editing .tile { border-style: dashed; }
+  .mini { border: 0; background: var(--bg); border-radius: 6px; font-size: 12px; padding: 4px 8px; }
+  .mini.del { color: var(--danger); }
+
+  .add-tile {
+    border: 1.5px dashed var(--line); background: none; border-radius: 14px; min-height: 130px;
+    color: var(--muted); font-size: 15px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 6px;
+  }
+  .add-tile:hover { color: var(--accent); border-color: var(--accent); }
+  .add-tile b { font-size: 28px; font-weight: 400; }
+
+  .empty-note { grid-column: 1 / -1; color: var(--muted); font-size: 14px; margin: 0 0 4px; }
+  .tag { font-size: 11px; color: var(--accent); }
+  .sync {
+    margin-top: 28px; border: 1px solid var(--accent); border-radius: 12px;
+    padding: 12px 16px; font-size: 14px; line-height: 1.6;
+  }
+  .sync p { margin: 0; }
+  .sync[hidden] { display: none; }
+  .foot { margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* 입력 창 */
+  dialog {
+    border: 0; border-radius: 16px; padding: 0; width: min(420px, calc(100% - 32px));
+    background: var(--tab-active); color: var(--ink);
+  }
+  dialog::backdrop { background: rgba(10, 15, 22, 0.45); }
+  .dlg { padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+  .dlg h2 { margin: 0; font-size: 18px; }
+  label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+  input[type="text"], input[type="url"] {
+    font: inherit; font-size: 15px; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+  }
+  .row { display: flex; gap: 10px; }
+  .row label:first-child { width: 80px; flex-shrink: 0; }
+  .row label:last-child { flex: 1; }
+  .err { color: var(--danger); font-size: 13px; min-height: 1em; margin: 0; }
+  .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .primary { border: 0; background: var(--accent); color: #fff; border-radius: 8px; padding: 9px 16px; font-weight: 500; }
+
+  .hint {
+    position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+    background: var(--ink); color: var(--bg); font-size: 13px; padding: 8px 14px; border-radius: 10px;
+    max-width: calc(100% - 32px); display: flex; gap: 10px; align-items: center;
+  }
+  .hint button { border: 0; background: none; color: inherit; text-decoration: underline; font-size: 13px; padding: 0; }
+  .hint[hidden] { display: none; }
+
+  @media (max-width: 520px) {
+    .home-inner { padding-top: 28px; }
+    .grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  }
+  .status-box {
+    grid-column: 1 / -1; border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 18px; font-size: 14px; line-height: 1.7; color: var(--muted);
+  }
+  .status-box b { color: var(--ink); }
+  .status-box.err { border-color: var(--danger); }
+  .hidden-list { margin-top: 28px; }
+  .hidden-list[hidden] { display: none; }
+  .hidden-list h2 { font-size: 15px; font-weight: 500; margin: 0 0 10px; color: var(--muted); }
+  .hidden-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<nav class="tabbar" id="tabbar" aria-label="열린 탭"></nav>
+
+<div class="toolbar" id="toolbar">
+  <div class="addr" id="addr"></div>
+  <button class="tool-btn" id="reloadBtn" title="새로고침">↻ 새로고침</button>
+  <button class="tool-btn" id="popBtn" title="새 창에서 열기">새 창</button>
+</div>
+
+<main id="main">
+  <section class="panel show" id="home">
+    <div class="home-inner">
+      <div class="home-head">
+        <h1>내 작업실</h1>
+        <div class="head-actions">
+          <button class="ghost" id="syncBtn">목록 새로고침</button>
+        </div>
+      </div>
+      <p class="sub">GitHub의 작품 폴더와 링크 목록이 여기에 자동으로 모여요.</p>
+      <div class="grid" id="grid"></div>
+    </div>
+  </section>
+  <div class="hint" id="hint" hidden>
+    <span>화면이 비어 있다면 이 사이트는 안에 띄울 수 없는 곳이에요.</span>
+    <button id="hintPop">새 창에서 열기</button>
+  </div>
+</main>
+
+<script>
+/* ============================================================
+   ▼ 처음 한 번만: 따옴표 안에 내 GitHub 아이디를 적어 주세요 ▼ */
+const GITHUB_ID = "여기에-아이디";
+const REPO = "my-works";
+/* ============================================================ */
+
+const KEY = 'my-works-hub-v1';
+const SKIP = ['netlify', 'node_modules'];      // 허브에 안 띄울 폴더
+let state = { cache: [], tabs: [], active: 'home' };
+let sites = [];
+let status = 'loading';   // loading | ok | no-id | not-found | error
+
+function loadLocal() { try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s) state = { ...state, ...s }; } catch (e) {} }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ICONS = ['🧩','🎲','🪁','🧪','🛠️','📦','🎯','🪴','🧭','🎈','📐','🔭'];
+function autoIcon(key) { let h = 0; for (const c of key) h = (h * 31 + c.charCodeAt(0)) | 0; return ICONS[Math.abs(h) % ICONS.length]; }
+const siteById = id => sites.find(s => s.id === id);
+function hostOf(url) { try { const u = new URL(url, location.href); return u.origin === location.origin ? u.pathname : u.hostname; } catch { return url; } }
+function normalizeUrl(v) {
+  v = String(v || '').trim();
+  if (!v) return null;
+  if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
+  try { const u = new URL(v); return u.hostname.includes('.') ? u.href : null; } catch { return null; }
+}
+function b64utf8(b64) {
+  const bin = atob(String(b64).replace(/\s/g, ''));
+  return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+}
+const gh = path => fetch(`https://api.github.com/repos/${GITHUB_ID}/${REPO}/contents/${path}`, {
+  headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store',
+});
+
+/* 작품 폴더의 index.html에서 제목과 이모지 아이콘 읽기 */
+async function peek(folder) {
+  try {
+    const r = await fetch(`/${encodeURIComponent(folder)}/`, { cache: 'no-store' });
+    if (!r.ok) return {};
+    const html = await r.text();
+    const t = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+    let emoji = '';
+    const icon = html.match(/href="(data:image\/svg\+xml[^"]*)"/i) || html.match(/href='(data:image\/svg\+xml[^']*)'/i);
+    if (icon) {
+      let s = icon[1]; try { s = decodeURIComponent(s); } catch {}
+      const m = s.match(/<text[^>]*>([^<]{1,8})<\/text>/i);
+      if (m) emoji = m[1].trim();
+    }
+    const tmp = document.createElement('textarea'); tmp.innerHTML = t ? t[1].trim() : '';
+    return { title: tmp.value.slice(0, 40), emoji };
+  } catch { return {}; }
+}
+
+/* links.txt 한 줄: 이름 | 주소 | 아이콘 */
+function parseLinks(text) {
+  const out = [];
+  for (const line of text.split(/\r?\n/)) {
+    const l = line.trim();
+    if (!l || l.startsWith('#')) continue;
+    const [name, url, icon] = l.split('|').map(x => (x || '').trim());
+    const u = normalizeUrl(url);
+    if (!name || !u || out.some(o => o.url === u)) continue;
+    out.push({ id: 'l:' + u, name: name.slice(0, 30), url: u, emoji: icon || autoIcon(u), kind: 'link' });
+  }
+  return out;
+}
+
+/* ===== 목록 받아오기 ===== */
+async function sync() {
+  if (!GITHUB_ID || GITHUB_ID.includes('여기에')) { status = 'no-id'; renderGrid(); return; }
+  $('syncBtn').disabled = true;
+  try {
+    const [rootRes, linkRes] = await Promise.all([gh(''), gh('links.txt')]);
+    if (rootRes.status === 404) { status = 'not-found'; throw 'stop'; }
+    if (!rootRes.ok) throw new Error(rootRes.status);
+    const root = await rootRes.json();
+    const folders = root.filter(x => x.type === 'dir' && !SKIP.includes(x.name) && !/^[._]/.test(x.name));
+    const works = await Promise.all(folders.map(async f => {
+      const p = await peek(f.name);
+      return { id: 'f:' + f.name, name: p.title || f.name, url: `/${encodeURIComponent(f.name)}/`, emoji: p.emoji || autoIcon(f.name), kind: 'work' };
+    }));
+    let links = [];
+    if (linkRes.ok) { const j = await linkRes.json(); links = parseLinks(b64utf8(j.content || '')); }
+    sites = [...works, ...links];
+    state.cache = sites;
+    status = 'ok';
+  } catch (e) {
+    if (e !== 'stop') status = 'error';
+  }
+  $('syncBtn').disabled = false;
+  state.tabs = state.tabs.filter(id => siteById(id));
+  save();
+  renderGrid(); renderTabs();
+  if (state.active !== 'home' && !siteById(state.active)) activate('home');
+}
+$('syncBtn').onclick = sync;
+
+/* ===== 홈 화면 ===== */
+function statusBox() {
+  switch (status) {
+    case 'loading': return `<div class="status-box">목록을 불러오는 중이에요…</div>`;
+    case 'no-id': return `<div class="status-box err"><b>GitHub 아이디가 아직 없어요.</b><br>
+      GitHub의 ${esc(REPO)} 저장소에서 index.html을 열고, 위쪽의 <b>GITHUB_ID</b> 줄에 내 아이디를 적어 저장해 주세요.</div>`;
+    case 'not-found': return `<div class="status-box err"><b>GitHub에서 ${esc(GITHUB_ID)}/${esc(REPO)} 저장소를 찾지 못했어요.</b><br>
+      아이디와 저장소 이름이 맞는지, 저장소가 Public인지 확인해 주세요.</div>`;
+    case 'error': return `<div class="status-box err"><b>목록을 가져오지 못했어요.</b> 잠시 후 <b>목록 새로고침</b>을 눌러 주세요.
+      ${state.cache.length ? '지금은 마지막으로 받아둔 목록을 보여주고 있어요.' : ''}</div>`;
+    default: return '';
+  }
+}
+function tileHtml(s) {
+  return `<button class="tile" data-app="${esc(s.id)}">
+    <span class="emoji">${esc(s.emoji)}</span>
+    <span class="name">${esc(s.name)}</span>
+    <span class="host">${esc(hostOf(s.url))}</span>
+  </button>`;
+}
+function renderGrid() {
+  let html = status === 'ok' ? '' : statusBox();
+  if (status === 'ok' && !sites.length) html += `<div class="status-box">아직 아무것도 없어요. 저장소에 작품 폴더를 올리거나 links.txt에 링크를 적어 보세요.</div>`;
+  html += sites.map(tileHtml).join('');
+  $('grid').innerHTML = html;
+}
+$('grid').addEventListener('click', e => {
+  const t = e.target.closest('.tile');
+  if (t) openApp(t.dataset.app);
+});
+
+/* ===== 탭 바 ===== */
+function renderTabs() {
+  let html = `<div class="tab home ${state.active === 'home' ? 'active' : ''}">
+    <button class="tab-open" data-open="home"><span>🏠</span><span>홈</span></button></div>`;
+  for (const id of state.tabs) {
+    const s = siteById(id);
+    if (!s) continue;
+    html += `<div class="tab ${state.active === id ? 'active' : ''}">
+      <button class="tab-open" data-open="${esc(id)}" title="${esc(s.name)}"><span>${esc(s.emoji)}</span><span>${esc(s.name)}</span></button>
+      <button class="tab-close" data-close="${esc(id)}" aria-label="${esc(s.name)} 탭 닫기">×</button></div>`;
+  }
+  $('tabbar').innerHTML = html;
+  const cur = $('tabbar').querySelector('.tab.active');
+  if (cur) cur.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+$('tabbar').addEventListener('click', e => {
+  const c = e.target.closest('[data-close]');
+  if (c) { closeTab(c.dataset.close); return; }
+  const o = e.target.closest('[data-open]');
+  if (o) activate(o.dataset.open);
+});
+$('tabbar').addEventListener('auxclick', e => {
+  const o = e.target.closest('[data-open]');
+  if (e.button === 1 && o && o.dataset.open !== 'home') closeTab(o.dataset.open);
+});
+
+/* ===== 탭 열고 닫기 ===== */
+let hintTimer;
+const panels = new Map();
+function activate(id) {
+  if (id !== 'home' && !siteById(id)) id = 'home';
+  state.active = id;
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('show'));
+  clearTimeout(hintTimer); $('hint').hidden = true;
+  if (id === 'home') {
+    $('home').classList.add('show');
+    $('toolbar').classList.remove('show');
+  } else {
+    const s = siteById(id);
+    let p = panels.get(id);
+    if (!p) {
+      p = document.createElement('section');
+      p.className = 'panel';
+      const f = document.createElement('iframe');
+      f.title = s.name;
+      f.allow = 'clipboard-read; clipboard-write; fullscreen; geolocation; camera; microphone';
+      f.src = s.url;
+      p.appendChild(f);
+      $('main').insertBefore(p, $('hint'));
+      panels.set(id, p);
+      if (s.kind === 'link') { $('hint').hidden = false; hintTimer = setTimeout(() => { $('hint').hidden = true; }, 5000); }
+    }
+    p.classList.add('show');
+    $('addr').textContent = new URL(s.url, location.href).href;
+    $('toolbar').classList.add('show');
+  }
+  renderTabs();
+  save();
+}
+function openApp(id) {
+  if (!state.tabs.includes(id)) state.tabs.push(id);
+  activate(id);
+}
+function closeTab(id) {
+  const i = state.tabs.indexOf(id);
+  if (i === -1) return;
+  state.tabs.splice(i, 1);
+  const p = panels.get(id);
+  if (p) { p.remove(); panels.delete(id); }
+  if (state.active === id) activate(state.tabs[i] || state.tabs[i - 1] || 'home');
+  else { renderTabs(); save(); }
+}
+$('reloadBtn').onclick = () => { const p = panels.get(state.active); if (p) p.querySelector('iframe').src = siteById(state.active).url; };
+const popOut = () => { const s = siteById(state.active); if (s) window.open(new URL(s.url, location.href).href, '_blank', 'noopener'); };
+$('popBtn').onclick = popOut;
+$('hintPop').onclick = popOut;
+
+/* ===== 시작 ===== */
+loadLocal();
+sites = state.cache || [];
+if (sites.length) status = 'ok';
+renderGrid();
+activate(state.active);
+sync();
+document.addEventListener('visibilitychange', () => { if (!document.hidden && state.active === 'home') sync(); });
+</script>
+</body>
+</html>

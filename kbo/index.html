@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>오늘의 KBO</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚾</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  /* 옛날 야구장 수동 전광판 느낌: 짙은 녹색 판에 흰 글자, 점수만 노란 숫자 */
+  :root {
+    --board: #173327;
+    --board-2: #1f4234;
+    --line: #2e5746;
+    --chalk: #f1f3ec;
+    --dim: #9fb8aa;
+    --bulb: #ffd24a;
+    --live: #ff6b5a;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--board); color: var(--chalk);
+    font-family: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 28px 16px 48px; }
+
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
+  .date { color: var(--dim); font-size: 14px; margin-top: 4px; }
+  .refresh {
+    border: 1px solid var(--line); background: none; color: var(--dim);
+    border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .refresh:hover { color: var(--chalk); border-color: var(--dim); }
+  .refresh:focus-visible { outline: 2px solid var(--bulb); outline-offset: 2px; }
+
+  h2 { font-size: 15px; font-weight: 500; color: var(--dim); margin: 28px 0 10px; }
+  h2:first-of-type { margin-top: 8px; }
+
+  .games { display: flex; flex-direction: column; gap: 8px; }
+  .game {
+    background: var(--board-2); border: 1px solid var(--line); border-radius: 12px;
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+    padding: 14px 12px; gap: 8px;
+  }
+  .team { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; text-align: center; }
+  .badge {
+    width: 52px; height: 52px; border-radius: 50%;
+    display: grid; place-items: center; font-weight: 700; font-size: 15px;
+    color: #fff; box-shadow: inset 0 0 0 2px rgba(255,255,255,.25);
+  }
+  .tname { font-size: 14px; font-weight: 500; }
+  .role { font-size: 11px; color: var(--dim); }
+  .starter { font-size: 12px; color: var(--dim); }
+  .starter b { color: var(--chalk); font-weight: 500; }
+  .loser .badge { opacity: .55; }
+  .loser .tname { color: var(--dim); }
+
+  .mid { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 110px; }
+  .score {
+    font-family: "Oswald", "IBM Plex Sans KR", sans-serif; font-weight: 600;
+    font-size: 40px; line-height: 1; color: var(--bulb);
+    font-variant-numeric: tabular-nums; display: flex; gap: 10px; align-items: center;
+  }
+  .score .colon { color: var(--dim); font-size: 28px; }
+  .time { font-family: "Oswald", sans-serif; font-size: 30px; font-weight: 500; line-height: 1; }
+  .status { font-size: 12px; color: var(--dim); }
+  .status.live { color: var(--live); font-weight: 500; }
+  .status.live::before {
+    content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--live); margin-right: 5px; vertical-align: 1px;
+    animation: blink 1.4s ease-in-out infinite;
+  }
+  @keyframes blink { 50% { opacity: .25; } }
+  @media (prefers-reduced-motion: reduce) { .status.live::before { animation: none; } }
+  .stadium { font-size: 11px; color: var(--dim); }
+
+  /* 오늘 결과 한 줄 요약 */
+  .results { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .res { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; padding: 9px 14px; font-size: 14px; }
+  .res + .res { border-top: 1px solid var(--line); }
+  .res .l { text-align: right; }
+  .res .n { font-family: "Oswald", sans-serif; color: var(--bulb); font-size: 17px; min-width: 64px; text-align: center; }
+  .res .w { font-weight: 700; }
+  .res .x { color: var(--dim); }
+
+  .note { color: var(--dim); font-size: 14px; line-height: 1.6; padding: 24px 4px; text-align: center; }
+  .note button { margin-top: 10px; }
+  .updated { margin-top: 20px; font-size: 12px; color: var(--dim); text-align: center; }
+
+  @media (max-width: 420px) {
+    .badge { width: 44px; height: 44px; font-size: 13px; }
+    .score { font-size: 34px; }
+    .mid { min-width: 92px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>오늘의 KBO</h1>
+      <div class="date" id="date"></div>
+    </div>
+    <button class="refresh" id="refresh">새로고침</button>
+  </header>
+  <div id="board"><p class="note">경기 정보를 불러오는 중이에요…</p></div>
+  <div class="updated" id="updated"></div>
+</div>
+
+<script>
+/* 팀 색상 (구단 대표색으로 만든 배지 — 로고 대신) */
+const TEAMS = [
+  { key: 'LG',  short: 'LG',  color: '#C30452' },
+  { key: '두산', short: '두산', color: '#1A1748' },
+  { key: 'KIA', short: 'KIA', color: '#EA0029' },
+  { key: '삼성', short: '삼성', color: '#074CA1' },
+  { key: '롯데', short: '롯데', color: '#0B2A5B' },
+  { key: 'SSG', short: 'SSG', color: '#CE0E2D' },
+  { key: '한화', short: '한화', color: '#F37321' },
+  { key: 'NC',  short: 'NC',  color: '#315288' },
+  { key: '키움', short: '키움', color: '#820024' },
+  { key: 'KT',  short: 'KT',  color: '#231F20' },
+];
+function teamInfo(name) {
+  const n = String(name || '').toUpperCase();
+  return TEAMS.find(t => n.includes(t.key.toUpperCase())) || { short: String(name || '?').slice(0, 2), color: '#4b6358' };
+}
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const WEEK = ['일', '월', '화', '수', '목', '금', '토'];
+function prettyDate(ymd) {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const w = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return `${m}월 ${d}일 (${WEEK[w]})`;
+}
+
+/* ===== 경기 카드 ===== */
+function teamHtml(t, role, g, showStarter) {
+  const info = teamInfo(t.name);
+  let lose = false;
+  if (g.state === 'final') {
+    if (g.winner === 'HOME' && role === '원정') lose = true;
+    if (g.winner === 'AWAY' && role === '홈') lose = true;
+    if (!g.winner && t.score != null) {
+      const other = role === '홈' ? g.away.score : g.home.score;
+      lose = Number(t.score) < Number(other);
+    }
+  }
+  return `<div class="team ${lose ? 'loser' : ''}">
+    <div class="badge" style="background:${info.color}">${esc(info.short)}</div>
+    <div class="tname">${esc(t.name)} <span class="role">${role}</span></div>
+    ${showStarter ? `<div class="starter">선발 <b>${esc(t.starter || '미정')}</b></div>` : ''}
+  </div>`;
+}
+
+function midHtml(g) {
+  if (g.state === 'live' || g.state === 'final') {
+    const label = g.state === 'live' ? (g.statusText || '경기 중') : '경기 종료';
+    return `<div class="mid">
+      <div class="score"><span>${g.away.score ?? 0}</span><span class="colon">:</span><span>${g.home.score ?? 0}</span></div>
+      <div class="status ${g.state === 'live' ? 'live' : ''}">${esc(label)}</div>
+      ${g.stadium ? `<div class="stadium">${esc(g.stadium)}</div>` : ''}
+    </div>`;
+  }
+  if (g.state === 'cancel') {
+    return `<div class="mid"><div class="time">취소</div><div class="status">${esc(g.statusText || '경기 취소')}</div></div>`;
+  }
+  return `<div class="mid">
+    <div class="time">${esc(g.time || '--:--')}</div>
+    <div class="status">경기 전</div>
+    ${g.stadium ? `<div class="stadium">${esc(g.stadium)}</div>` : ''}
+  </div>`;
+}
+
+function gameCard(g) {
+  const showStarter = g.state === 'before';
+  return `<div class="game">${teamHtml(g.away, '원정', g, showStarter)}${midHtml(g)}${teamHtml(g.home, '홈', g, showStarter)}</div>`;
+}
+
+function resultRow(g) {
+  if (g.state === 'cancel') {
+    return `<div class="res"><span class="l">${esc(g.away.name)}</span><span class="n x">취소</span><span>${esc(g.home.name)}</span></div>`;
+  }
+  const a = Number(g.away.score ?? 0), h = Number(g.home.score ?? 0);
+  return `<div class="res">
+    <span class="l ${a > h ? 'w' : ''}">${esc(g.away.name)}</span>
+    <span class="n">${a} : ${h}</span>
+    <span class="${h > a ? 'w' : ''}">${esc(g.home.name)}</span>
+  </div>`;
+}
+
+/* ===== 화면 그리기 ===== */
+function render(data) {
+  $('date').textContent = prettyDate(data.today);
+  const today = data.todayGames || [];
+  const stillGoing = today.some(g => g.state === 'before' || g.state === 'live');
+  let html = '';
+
+  if (stillGoing) {
+    // 오늘 경기가 남아 있으면 오늘 경기 5개를 크게
+    html += `<h2>오늘 경기</h2><div class="games">${today.map(gameCard).join('')}</div>`;
+  } else {
+    // 오늘 경기가 다 끝났거나 없으면 다음 경기 + 선발투수
+    if (data.nextDate) {
+      html += `<h2>다음 경기 · ${prettyDate(data.nextDate)}</h2>
+        <div class="games">${data.nextGames.map(gameCard).join('')}</div>`;
+    } else {
+      html += `<p class="note">앞으로 3주 안에 잡힌 KBO 경기가 없어요.</p>`;
+    }
+    if (today.length) {
+      html += `<h2>오늘 결과</h2><div class="results">${today.map(resultRow).join('')}</div>`;
+    } else if (data.nextDate) {
+      html = `<p class="note" style="padding:4px 4px 0;text-align:left">오늘은 경기가 없는 날이에요.</p>` + html;
+    }
+  }
+  $('board').innerHTML = html;
+  const now = new Date();
+  $('updated').textContent = `마지막 업데이트 ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}` +
+    (today.some(g => g.state === 'live') ? ' · 경기 중에는 30초마다 자동으로 바뀌어요' : '');
+  return today.some(g => g.state === 'live');
+}
+
+/* ===== 데이터 불러오기 ===== */
+const DEMO = {
+  today: '2026-09-29',
+  todayGames: [
+    { state: 'live', statusText: '6회말', time: '18:30', stadium: '잠실', away: { name: '한화', score: 3 }, home: { name: 'LG', score: 5 } },
+    { state: 'final', time: '14:00', stadium: '고척', winner: 'AWAY', away: { name: 'KIA', score: 7 }, home: { name: '키움', score: 2 } },
+    { state: 'before', time: '18:30', stadium: '사직', away: { name: '삼성', starter: '원태인' }, home: { name: '롯데', starter: '박세웅' } },
+    { state: 'cancel', statusText: '우천취소', time: '18:30', away: { name: 'NC' }, home: { name: 'SSG' } },
+    { state: 'live', statusText: '3회초', time: '18:30', stadium: '수원', away: { name: '두산', score: 0 }, home: { name: 'KT', score: 1 } },
+  ],
+  nextDate: null, nextGames: [],
+};
+
+let timer;
+async function load() {
+  clearTimeout(timer);
+  const demo = new URLSearchParams(location.search).has('demo');
+  try {
+    let data;
+    if (demo) data = DEMO;
+    else {
+      const res = await fetch('/api/scores', { cache: 'no-store' });
+      data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || res.status);
+    }
+    const live = render(data);
+    // 경기 중이면 30초, 아니면 5분마다 다시 확인
+    timer = setTimeout(load, live ? 30000 : 300000);
+  } catch (e) {
+    $('board').innerHTML = `<p class="note">경기 정보를 불러오지 못했어요.<br>
+      Netlify에 올린 주소에서 열었는지 확인하고, 잠시 후 다시 시도해 주세요.<br>
+      <button class="refresh" onclick="load()">다시 불러오기</button></p>`;
+    timer = setTimeout(load, 60000);
+  }
+}
+$('refresh').onclick = load;
+document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+load();
+</script>
+</body>
+</html>
